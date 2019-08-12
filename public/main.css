@@ -76,18 +76,36 @@ main div {
   margin: 0px 5px;
 }
 
+footer {
+  margin-top: 200px;
+}
+
 h1, h2, h3, h4, h5 {
-  margin: 5px;
+  margin: 5px 0px;
   text-align: left;
 }
 
 h2, h3{
-  padding-top: 20px;
+  margin-top: 40px;
 }
 
 iframe {
   border-radius: 20px;
   margin-bottom: 30px;
+  transition: height 1s ease-in;
+  transition-delay: 1s;
+}
+
+iframe:hover {
+  transition: height 200ms ease;
+}
+
+#youtube:hover, #soundcloud:hover {
+  height: 400px;
+}
+
+#audiomack:hover {
+  height: 260px;
 }
 
 p {
@@ -110,6 +128,7 @@ main > div > h2 {
 main > div > h2:hover {
   word-spacing: 0.25em;
   transition: word-spacing 300ms ease;
+  transition-delay: 200ms;
 }
 
 img {
