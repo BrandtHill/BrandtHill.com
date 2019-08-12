@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Creating a Price Tracker in Elixir</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="/main.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <link rel="stylesheet" href="https://jmblog.github.io/color-themes-for-google-code-prettify/themes/tomorrow-night.min.css">
+  <link rel="icon" type="image/png" href="/Resistor.png">
+</head>
+<body>
+  <div class="topnav">
+    <a href="https://brandthill.com">Home</a>
+  </div>
+  <main>
+    <h1>Creating a Price Tracker in Elixir</h1>
+    <p>
+        Elixir is a pretty <i>neat</i> language. It’s the first functional programming language that I’ve spent any amount of time with, unless you consider Java’s Functional Interfaces and C#’s LINQ to be functional programming. Elixir has <i>cute</i> syntax like pipes, <i>cool</i> features like pattern matching for everything, and <i>sick</i> capabilities like supervision trees. Pretending for a moment that most sites don’t already notify you when items go on sale, a price tracking application sounds like a great idea for an Elixir project.
+    </p>
+    <p>
+      The first thing we need to have is a way to grab html pages from the web that contain a product and its price. HTTPoison is the de facto standard HTTP client library for Elixir and what I’ll be using. Once we have the html, we need a way to extract the price from it. Floki is the HTML parsing library I’ll be using.
+    </p>
+    <p>
+      Let’s try to grab the contents of a web page. On success, <code class="prettyprint">HTTPoison.get/1</code> returns a tuple whose first element is the atom :ok and whose second element is a Response struct. Because all structs are maps in Elixir, we’ll use pattern patching to grab the body of the response.
+      <pre class="prettyprint">{:ok, %{body: body}} = HTTPoison.get("https://www.escapefromtarkov.com/preorder-page")</pre>
+      Now that we have the HTML stored in body, we can use <code class=prettyprint>Floki.find/2</code> to extract what we want. The first argument is the raw HTML, and the second is a CSS attribute selector that Floki will use to match with elements in the document.
+    </p>    
+  </main>
+</body>
+</html>
