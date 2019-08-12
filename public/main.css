@@ -15,7 +15,7 @@ body {
 }
 
 .topnav {
-  margin: 40px;
+  margin: 20px;
 }
 
 .topnav a {
@@ -32,9 +32,24 @@ body {
   transition: background 300ms ease-in;
 }
 
+li a {
+  text-decoration: none;
+  color: #999999;
+  transition: color 300ms ease;
+}
+
+li a:hover {
+  color: #CCCCCC;
+  transition: color 300ms ease;
+}
+
+li {
+  text-align: left;
+}
+
 main {
   margin: auto;
-  width: 700px;
+  width: 800px;
   max-width: 90%;
   min-width: 30%;
 }
@@ -42,19 +57,118 @@ main {
 main div {
   margin: auto;
   text-align: left;
-  margin: 60px 0px 20px;
-}
-
-.social {
-  padding-left: 20px;
+  margin: 20px 0px;
 }
 
 .social a {
   text-decoration: none;
   color: #CCCCCC;
+  transition: color 300ms ease;
+}
+
+.social a:hover {
+  color: rgb(21, 247, 0);
+  transition: color 300ms ease;
 }
 
 .social a i {
-  
-  font-size: 40px;
+  font-size: 20px;
+  margin: 0px 5px;
+}
+
+h1, h2, h3, h4, h5 {
+  margin: 5px;
+  text-align: left;
+}
+
+h2, h3{
+  padding-top: 20px;
+}
+
+iframe {
+  border-radius: 20px;
+  margin-bottom: 30px;
+}
+
+p {
+  text-align: left;
+  line-height: 1.5;
+  font-size: 18px;
+}
+
+sup {
+  vertical-align: top;
+  font-size: 0.3em;
+  line-height: 0;
+}
+
+main > div > h2 {
+  word-spacing: 0em;
+  transition: word-spacing 300ms ease;
+}
+
+main > div > h2:hover {
+  word-spacing: 0.25em;
+  transition: word-spacing 300ms ease;
+}
+
+img {
+  width: 800px;
+  max-width: 90%;
+  min-width: 30%;
+}
+
+.prettyprint {
+  text-align: left;
+  overflow-x: auto;
+}
+
+::-webkit-scrollbar {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  -webkit-border-radius: 1ex;
+  background: #444444;
+}
+
+::-webkit-scrollbar-track {
+  background: #222222;
+}
+
+table {
+  padding: 0;
+}
+table tr {
+  border-top: 1px solid #000000;
+  background-color: #222222;
+  margin: 0;
+  padding: 0;
+}
+
+table tr:nth-child(2n) {
+  background-color: #333333;
+}
+
+table tr th {
+  font-weight: bold;
+  border: 1px solid #cccccc;
+  text-align: left;
+  margin: 0;
+  padding: 6px 13px;
+}
+
+table tr td {
+  border: 1px solid #999999;
+  text-align: left;
+  margin: 0;
+  padding: 6px 13px;
+}
+
+table tr th :first-child, table tr td :first-child {
+  margin-top: 0;
+}
+
+table tr th :last-child, table tr td :last-child {
+  margin-bottom: 0;
 }

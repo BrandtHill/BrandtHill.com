@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Implementing Base64 Encoding in Several Languages</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="/main.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <link rel="stylesheet" href="https://jmblog.github.io/color-themes-for-google-code-prettify/themes/tomorrow-night.min.css">
+  <link rel="icon" type="image/png" href="/Resistor.png">
+</head>
+<body>
+  <div class="topnav">
+    <a href="https://brandthill.com">Home</a>
+  </div>
+  <main>
+    <h1>Implementing Base64 Encoding in Several Languages</h1>
+    <p>
+      I love software. What I <i>don't</i> love is coming up with ideas for software projects.
+      The truth is that any meaningful software problem has already been solved, at least for
+      those whose scope I would be willing to undertake myself. I do take some pleasure in
+      designing or implementing something with little to no framework or libraries, especially
+      lower-level utilities that might be taken for granted. What better a project than to
+      implement Base64 encoding and decoding in a few languages in the same way and compare their
+      relative performances?
+    </p>
+    <div class="social">
+      <a href="https://github.com/BrandtHill/Base64Encoding" target="_blank">
+        <h5>Repository here</h5>
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <h2>What is Base64 Encoding?</h2>
+    <p>
+      Sometimes it's useful to be able to encode arbitrary data using only simple ASCII characters,
+      namely alphanumeric. We can think of a standard byte or octet as being Base256. That is,
+      a single unit can be 1 of 256 possible values. The problem with representing a raw byte with
+      an ASCII character is that many of the 256 values either aren't displayable characters or
+      fall outside range of alphanumeric and basic punctuation. To solve that, we can encode the 
+      data using a subset of ASCII values that are all human readable characters. This will result
+      in a loss of efficiency: the encoded representation of the data is larger than the data itself.
+      The factor by which it is larger than the raw data can be defined with
+      log<sub>2</sub>(256)/log<sub>2</sub>(<i>b</i>) where <i>b</i> is the base of our encoding scheme.
+    </p>
+    <p>
+      A simple encoding scheme would be Base2, or "binary" colloquially. <br>
+      log<sub>2</sub>(256)/log<sub>2</sub>(2) = 8/1 = 8 <br> 8 is a big factor to explode your data by.
+      The Base2 or "binary" representation of 79 is '01001111', which indeed uses 8 bytes to represent
+      the value of a single byte. While Base2 encoding is useful for visualizing what's going on at
+      bit-level, it's certainly not a good way to represent data compactly. <br> Another common scheme is 
+      Base16, or "hexadecimal," "hex" for short. <br> log<sub>2</sub>(256)/log<sub>2</sub>(16) = 8/4 = 2
+      <br> Not bad; the data will only be twice as large. The Base16 or "hex" representation of 79 is '4F',
+      only two bytes to represent one, and perhaps the most visually appealing encoding scheme when
+      analyzing raw data.
+    </p>
+    <p>
+      Enter Base64 encoding. <br>
+      log<sub>2</sub>(256)/log<sub>2</sub>(64) = 8/6 = 1.333... <br>
+      1.333 is even better than 2, but it's not an integer so it will be much harder to "visualize" the 
+      underlying data. Furthermore, there will be some overhead when the number of bytes we're encoding
+      isn't divisible by 3. So, what does Base64 mean exactly? 
+    </p>
+    <p>
+      In Base2/binary we limited our bytes to 1 of 2 possible values, '0' or '1'.<br>
+      In Base16/hex we allowed our bytes to be 1 of 16 possible values, '0-9' and 'A-F'.<br>
+      In Base64, our bytes are assigned 1 of 64(+1) possible vales: 'A-Z', 'a-z', '0-9', '/', '+',
+      and a 65th character '=' for the cases where there's remainder in data to be encoded.<br>
+      The input data is split into chunks of 3 bytes, where each of these chunks will be encoded
+      into an output chunk of 4 characters. We can see from the figure than the chars 1 and 4 each 
+      depend on only one byte whereas chars 2 and 3 each depend on portions of two bytes. Because
+      we must store each char in memory as byte, we can see that our encoded output will be 4 bytes
+      to the 3 input, confirming our data-exploding factor of 1.333.
+    </p>
+    <img src="Base64EncodingVisual.svg">
+    <h2>The Code</h2>
+    <p>
+      If you didn't already know what Base64 encoding was, hopefully you do now. Let's get into the code.
+      I started out implementing it in Java. 
+    </p>
+    <h3>Java</h3>
+    <p>
+      The index table for encoding is created in one line by converting the string to a char array.
+    </p>
+    <pre class="prettyprint">static char[] indexTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();</pre>
+    <p>
+      For our encode function we'll be taking in a byte array and returning a String.
+    </p>
+    <pre class="prettyprint">public static String encode(byte[] data) {...}</pre>
+    <p>
+      I want to allocate exactly how much memory I'll need for the encoded output. We get the remainder
+      with a simple modulo operation. Now the length of the encoded output will be 4/3 * the input length,
+      and if we have a remainder, add 4 more. Java has StringBuffer and StringBuilder classes, which are
+      conveniences for appending chars to a string. StringBuffer makes for a nice wrapper around a preallocated
+      char array in this case.
+    </p>
+    <pre class="prettyprint">
+int datLen = data.length;
+int remainder = datLen % 3;
+int encLen = (datLen / 3) * 4 + (remainder != 0 ? 4 : 0);
+StringBuffer buffer = new StringBuffer(encLen);</pre>
+    <p>
+      Now for the loop. We'll declare our indexing variable outside of the so we can use it for the remainder.
+      In this loop, we'll be looping through each complete input chunk of 3 bytes, saving the remainder for later.
+      A bunch of bitwise operations on the input chunk determine the value used to index into the encoding index table.
+      In Java, &gt;&gt;&gt; is the unsigned right bitshift operator where &gt;&gt; is signed.
+    </p>
+    <pre class="prettyprint">
+int i;
+for (i = 0; i < (datLen - remainder); i += 3) {
+  buffer.append(indexTable[                         data[i  ]>>>2 ]);
+  buffer.append(indexTable[ (data[i  ] & 0x03)<<4 | data[i+1]>>>4 ]);
+  buffer.append(indexTable[ (data[i+1] & 0x0F)<<2 | data[i+2]>>>6 ]);
+  buffer.append(indexTable[  data[i+2] & 0x3F                     ]);
+}</pre>
+    <p>Because it didn't feel right for the handling of the remainder to take up as many lines as the loop, 
+      I cheese'd it in two with some goofy char arrays.
+    </p>
+<pre class="prettyprint">
+if (remainder == 1) buffer.append(new char[] { indexTable[ data[i]>>>2 ], indexTable[ (data[i] & 0x03)<<4 ], '=', '=' });
+if (remainder == 2) buffer.append(new char[] { indexTable[ data[i]>>>2 ], indexTable[ (data[i] & 0x03)<<4 | data[i+1]>>>4 ], indexTable[ (data[i+1] & 0x0F)<<2 ], '='});</pre>
+    <p>
+      Now we can put it all together and return the buffer's string.
+    </p>
+    <pre class="prettyprint">
+public static String encode(byte[] data) {
+  int datLen = data.length;
+  int remainder = datLen % 3;
+  int encLen = (datLen / 3) * 4 + (remainder != 0 ? 4 : 0);
+  StringBuffer buffer = new StringBuffer(encLen);
+  int i;
+  for (i = 0; i < (datLen - remainder); i += 3) {
+    buffer.append(indexTable[                         data[i  ]>>>2 ]);
+    buffer.append(indexTable[ (data[i  ] & 0x03)<<4 | data[i+1]>>>4 ]);
+    buffer.append(indexTable[ (data[i+1] & 0x0F)<<2 | data[i+2]>>>6 ]);
+    buffer.append(indexTable[  data[i+2] & 0x3F                     ]);
+  }
+
+  if (remainder == 1) buffer.append(new char[] { indexTable[ data[i]>>>2 ], indexTable[ (data[i] & 0x03)<<4 ], '=', '=' });
+  if (remainder == 2) buffer.append(new char[] { indexTable[ data[i]>>>2 ], indexTable[ (data[i] & 0x03)<<4 | data[i+1]>>>4 ], indexTable[ (data[i+1] & 0x0F)<<2 ], '='});
+
+  return buffer.toString();
+}</pre>
+    <p>
+      For our decode function, we will accept a String and return a byte array.
+    </p>
+    <pre class="prettyprint">public static byte[] decode(String data) {...}</pre>
+    <p>
+      Java also has a ByteBuffer, a wrapper around a byte array. To determine the length of the decoded 
+      data, we'll need the value of the remainder. The way we determine the value of the remainder can expressed verbally as follows:
+      Is the last character in our encoded string '='? If not, no remainder. Else, if the second-last character also '=' then remainder = 1, otherwise remainder = 2.
+      With that, the decoded length is 3/4 that of the encoded string, minus 1 or 2 if we had a remainder of 2 or 1 respectively.
+    </p>
+    <pre class="prettyprint">
+int encLen = data.length();
+int remainder = data.charAt(encLen - 1) == '=' ? (data.charAt(encLen - 2) == '=' ? 1 : 2) : 0;
+int decLen = (encLen * 3) / 4 - (3 - remainder) % 3;
+ByteBuffer buffer = ByteBuffer.allocate(decLen);</pre>
+    <p>
+      For the loop, we perform the opposite bitwise operations and use a reverse index table to convert from the
+      ASCII value of the char to the integer value from 0-63. We exit the loop before getting into the remainder territory.
+    </p>
+    <pre class="prettyprint">
+int i;
+for (i = 0; i < (encLen - 4); i += 4) {
+  buffer.put((byte)(       (revTable[data.charAt(i  )]<<2) |        (revTable[data.charAt(i+1)]>>>4)));
+  buffer.put((byte)(0xF0 & (revTable[data.charAt(i+1)]<<4) | 0x0F & (revTable[data.charAt(i+2)]>>>2)));
+  buffer.put((byte)(0xC0 & (revTable[data.charAt(i+2)]<<6) | 0x3F & (revTable[data.charAt(i+3)])));
+}</pre>
+    <p>
+      For the last iteration, outside the loop, we simply perform the same steps, exiting early if our remainder dictates it.
+    </p>
+    <pre class="prettyprint">
+buffer.put((byte)((revTable[data.charAt(i)]<<2) | (revTable[data.charAt(i+1)]>>>4)));
+if (remainder == 1) return buffer.array();
+buffer.put((byte)(0xF0 & (revTable[data.charAt(i+1)]<<4) | 0x0F & (revTable[data.charAt(i+2)]>>>2)));
+if (remainder == 2) return buffer.array();
+buffer.put((byte)(0xC0 & (revTable[data.charAt(i+2)]<<6) | 0x3F & (revTable[data.charAt(i+3)])));
+return buffer.array();
+</pre>
+    <p>
+      Putting it all together:
+    </p>
+    <pre class="prettyprint">
+public static byte[] decode(String data) {
+  int encLen = data.length();
+  int remainder = data.charAt(encLen - 1) == '=' ? (data.charAt(encLen - 2) == '=' ? 1 : 2) : 0;
+  int decLen = (encLen * 3) / 4 - (3 - remainder) % 3;
+  ByteBuffer buffer = ByteBuffer.allocate(decLen);
+
+  int i;
+  for (i = 0; i < (encLen - 4); i += 4) {
+    buffer.put((byte)(       (revTable[data.charAt(i  )]<<2) |        (revTable[data.charAt(i+1)]>>>4)));
+    buffer.put((byte)(0xF0 & (revTable[data.charAt(i+1)]<<4) | 0x0F & (revTable[data.charAt(i+2)]>>>2)));
+    buffer.put((byte)(0xC0 & (revTable[data.charAt(i+2)]<<6) | 0x3F & (revTable[data.charAt(i+3)])));
+  }
+    
+  buffer.put((byte)((revTable[data.charAt(i)]<<2) | (revTable[data.charAt(i+1)]>>>4)));
+  if (remainder == 1) return buffer.array();
+  buffer.put((byte)(0xF0 & (revTable[data.charAt(i+1)]<<4) | 0x0F & (revTable[data.charAt(i+2)]>>>2)));
+  if (remainder == 2) return buffer.array();
+  buffer.put((byte)(0xC0 & (revTable[data.charAt(i+2)]<<6) | 0x3F & (revTable[data.charAt(i+3)])));
+  return buffer.array();
+}</pre>
+
+    <h3>C</h3>
+    <p>
+      I ported the Java implementation over to C. Without the conveniences of String/ByteBuffers, I had to keep track of
+      two indexing variables for the loops. For the encode function I unfortunately couldn't cheese the remainder bit in
+      two lines, but I did my best.
+    </p>
+    <pre class="prettyprint">
+char* encode(char* data) {
+  int datLen = strlen(data);
+  int remainder = datLen % 3;
+  int encLen = (datLen / 3) * 4 + (remainder ? 4 : 0);
+  char* buffer = calloc(encLen + 1, sizeof(char));
+  int i,j;
+  for (i = j = 0; i < (datLen - remainder); i += 3) {
+      buffer[j++] = indexTable[                         data[i  ]>>2 ];
+      buffer[j++] = indexTable[ (data[i  ] & 0x03)<<4 | data[i+1]>>4 ];
+      buffer[j++] = indexTable[ (data[i+1] & 0x0F)<<2 | data[i+2]>>6 ];
+      buffer[j++] = indexTable[  data[i+2] & 0x3F ];
+  }
+  
+  if (remainder) {
+      strncpy(buffer + j + 2, "==", 2);
+      buffer[j++] = indexTable[ data[i]>>2 ];
+      buffer[j] = indexTable[ (data[i] & 0x03)<<4 ];
+      if (remainder == 2) {
+          buffer[j++] = indexTable[ (data[i] & 0x03)<<4 | data[i+1]>>4 ];
+          buffer[j++] = indexTable[ (data[i+1] & 0x0F)<<2 ];
+      }
+  }
+  
+  return buffer;
+}</pre>
+
+    <h3>C#</h3>
+    <p>
+      The C# port looked almost identical to Java. I used a StringBuilder for encoding, and a byte array for decoding.
+      I had tried implemented decoding using MemoryStream, C#'s equivalent to Java's ByteBuffer, but it ran about 60%
+      slower than the byte array, so I used the byte array.
+    </p>
+    <h3>Python</h3>
+    <p>
+      Python looked a little closer to C since I had to track two indexing variables and couldn't cheese the remainder
+      portion of the encode function. I had to use while loops for encoding and decoding as well since Python doesn't
+      offer the traditional 3-clause for loop.
+    </p>
+    <pre class="prettyprint">
+i = 0
+j = 0
+while i < (dat_len - remainder):
+    buffer[j  ] = index_table[                           (data[i  ])>>2 ]
+    buffer[j+1] = index_table[ ((data[i  ]) & 0x03)<<4 | (data[i+1])>>4 ]
+    buffer[j+2] = index_table[ ((data[i+1]) & 0x0F)<<2 | (data[i+2])>>6 ]
+    buffer[j+3] = index_table[  (data[i+2]) & 0x3F ]
+    i += 3
+    j += 4
+</pre>
+
+    <h3>
+      Javascript
+    </h3>
+    <p>
+      While the decode function of my JS implementation was pretty similar to all the other languages, the encode function
+      was quite a bit different. I didn't need to calculate a remainder or allocate a string. I instead checked the length
+      of what ArrayBuffer.slice() returned in the condition of a while loop and used simple string concatenation for the encoded value.
+    </p>
+    <pre class="prettyprint">
+const encode = (data) => {
+  data = Buffer.from(data, 'utf8')
+  let enc = ''
+  let i = 0
+  let chunk
+  while((chunk = data.slice(i, i + 3)).length == 3) {
+      enc += 
+          index[                         chunk[0] >>> 2] +
+          index[(chunk[0] & 0x03) << 4 | chunk[1] >>> 4] +
+          index[(chunk[1] & 0x0F) << 2 | chunk[2] >>> 6] +
+          index[ chunk[2] & 0x3F]
+      i += 3
+  }
+  if (chunk.length) {
+      enc +=
+          index[chunk[0] >>> 2] +
+          index[(chunk[0] & 0x03) << 4 | chunk[1] >>> 4 ] +
+          (chunk[1] ? index[(chunk[1] & 0x0F) << 2] : '=') + '='
+  }
+  return enc
+}</pre>
+
+    <h3>
+      Elixir
+    </h3>
+    <p>
+      The Elixir implementation is quite a bit different than any of the other languages. The bitwise operations for encode/decode
+      functions were the same, which was the bare minimum that I wanted all of my implementations to comply to. Believe it or not,
+      Elixir does not have a simple array. It has (linked) lists, maps, and contiguous-in-memory tuples. I tried maps, tuples, and even
+      strings for my index table(s), but they were all too slow. I ended up using a function that leverages Elixir's neat cond blocks.
+      I also didn't need to care about remainders or allocating buffers. Function pattern matching, bit-string concatenation, and recursion
+      would have to suffice.
+    </p>
+    <pre class="prettyprint">
+def encode(data), do: encode(<<>>, data)
+defp encode(h, <<>>), do: h
+defp encode(h, &lt;&lt;a::8>>), do: h <> indx(a >>> 2) <> indx((a &&& 0x03) <<< 4) <> "=="
+defp encode(h, &lt;&lt;a::8, b::8>>), do: h <> indx(a >>> 2) <> indx((a &&& 0x03) <<< 4 ||| b >>> 4) <> indx((b &&& 0x0F) <<< 2) <> "="
+defp encode(h, &lt;&lt;a::8, b::8, c::8, t::binary>>) do
+  h
+  <> indx(                       a >>> 2)
+  <> indx((a &&& 0x03) <<< 4 ||| b >>> 4)
+  <> indx((b &&& 0x0F) <<< 2 ||| c >>> 6)
+  <> indx( c &&& 0x3F)
+  |> encode(t)
+end</pre>
+    <pre class="prettyprint">
+def decode(data), do: decode(<<>>, data)
+defp decode(h, <<>>), do: h
+defp decode(h, &lt;&lt;a, b, ?=, ?=>>), do: h <> <<rev(a) <<< 2 ||| rev(b) >>> 4>>
+defp decode(h, &lt;&lt;a, b, c, ?=>>), do: h <> <<rev(a) <<< 2 ||| rev(b) >>> 4, rev(b) <<< 4 &&& 0xF0 ||| rev(c) >>> 2 &&& 0x0F>>
+defp decode(h, &lt;&lt;a, b, c, d, t::binary>>) do 
+  h <>
+  <<
+    rev(a) <<< 2          ||| rev(b) >>> 4,
+    rev(b) <<< 4 &&& 0xF0 ||| rev(c) >>> 2 &&& 0x0F,
+    rev(c) <<< 6 &&& 0xC0 ||| rev(d) &&& 0x3F
+  >>
+  |> decode(t)
+end</pre>
+
+    <h3>Nim and Crystal</h3>
+    <p>
+      I've never programmed in Nim or Crystal, but my friend <a href="benhaney.com" style="color: rgb(21, 247, 0)">Ben Haney</a> kindly
+      contributed implementations in both languages.
+      The Nim port is almost verbatim my Python; he simply copied it and changed the keywords and syntax around slightly to those of Nim.
+      Nim compiles into C/C++ or Javascript and has apparently Python-like syntax. Very cool. Crystal is essentially statically type checked,
+      compiled Ruby. For the Crystal implementation, Ben opted to not care about remainders and has two very short, clean functions. I think
+      checking for the remainder condition on every iteration of the encode loop caused the performance to suffer. Also, I think the decode
+      function pads the decoded buffer with 1 or 2 zero bytes in the event of a remainder. This might slightly corrupt your data if your
+      data was not a null-terminated string. Regardless, the functions are slick:
+    </p>
+    <pre class="prettyprint">
+def encode(data)
+  String.build(data.size * 2) do |s|
+    data.each_slice(3) do |d|
+      s << (                   E_TBL[                         (d[0]        >> 2) ])
+      s << (                   E_TBL[ ((d[0] & 0x03) << 4) | ((d[1]? || 0) >> 4) ])
+      s << (d[1]?.nil? ? '=' : E_TBL[ ((d[1] & 0x0F) << 2) | ((d[2]? || 0) >> 6) ])
+      s << (d[2]?.nil? ? '=' : E_TBL[ ((d[2] & 0x3F)) ])
+    end
+  end
+end
+
+def decode(data)
+  buffer = Array(UInt8).new(data.size)
+  data.each_byte.each_slice(4) do |d|
+    buffer.push((((D_TBL[d[0]] << 2)       ) | ((D_TBL[d[1]] >> 4)       )))
+    buffer.push((((D_TBL[d[1]] << 4) & 0xF0) | ((D_TBL[d[2]] >> 2) & 0x0F)))
+    buffer.push((((D_TBL[d[2]] << 6) & 0xC0) | ((D_TBL[d[3]]     ) & 0x3F)))
+  end
+  buffer
+end</pre>
+    <h2>Benchmark</h2>
+    <p>
+      With all these lovely implementations of the same Base64 encoding and decoding algorithm, let's see how they compare.
+      The test for each language was to encode, decode, and encode-then-decode a few human readable strings
+      to verify correct functionality, then record the time it takes to encode-then-decode a large Lorem Ipsum paragraph one million times.
+    </p>
+    <pre class="prettyprint">
+const big_string = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum mi purus,
+mollis et pulvinar quis, elementum non felis. Ut bibendum dolor ut mauris tempus, euismod
+ultricies odio vulputate. Nunc finibus elit non venenatis maximus. Maecenas in mollis ipsum,
+mattis laoreet purus. Sed lacus purus, tempus vel elementum sed, rutrum nec massa. Mauris
+mattis libero vitae nunc tempor, eget posuere ipsum molestie. Curabitur semper tempus diam.
+Morbi rutrum sollicitudin augue, rhoncus viverra velit volutpat vitae.\r\n`</pre>
+    <p>Here's <a href="benhaney.com" style="color: rgb(21, 247, 0)">Ben</a> flexing with Nim's Uniform Function Call Syntax.</p>
+    <pre class="prettyprint">
+echo encode("AAAAAAAAAAAA")
+echo "AAAAAAAAAAAAA".encode
+echo encode "AAAAAAAAAAAAAA"
+echo decode(encode("123"))
+echo decode encode "1234"
+echo "12345".encode.decode
+echo "123456".encode().decode()
+echo decode "QUJDYWJjMTIzWFlaeHl6"</pre>
+    <p>And here's what each of the one million paragrah benchmark looked like for each language. Remember to free your buffers in C.</p>
+    <h5>C</h5>
+    <pre class="prettyprint">
+gettimeofday(&timeStart, NULL);
+for (i = 0; i<1000000; i++) {
+    largeTest_enc = (char*)encode(largeData);
+    largeTest_dec = (char*)decode(largeTest_enc);
+    free(largeTest_enc);
+    free(largeTest_dec);
+}
+gettimeofday(&timeStop, NULL);</pre>
+    <h5>Java</h5>
+    <pre class="prettyprint">
+long timeStart = System.nanoTime();
+for (int i = 0; i < 1000000; i++) largeTest = decode(encode(largeData)); 
+long timeEnd = System.nanoTime();</pre>
+    <h5>C#</h5>    
+    <pre class="prettyprint">
+Stopwatch sw = new Stopwatch();
+sw.Start();
+for (int i = 0; i < 1000000; i++) largeTest = Decode(Encode(largeData));
+sw.Stop();</pre>
+    <h5>Nim</h5>
+    <pre class="prettyprint">
+let time_start = epochTime()
+for _ in (1 .. 1_000_000): largeTest = decode(encode(largeData))
+let time_stop = epochTime()</pre>
+    <h5>Crystal</h5>
+    <pre class="prettyprint">
+elapsed_time = Time.measure do
+  test = [] of UInt8
+  1_000_000.times {
+    test = decode(encode(LARGE_DATA))
+  }
+end</pre>
+    <h5>Javascript</h5>
+    <pre class="prettyprint">
+let start = Date.now()
+for (let i = 0; i < 1000000; i++) big_res = decode(encode(big_string))
+let stop = Date.now()</pre>
+    <h5>Elixir</h5>
+    <pre class="prettyprint">
+t0 = System.system_time(:millisecond)
+Task.async_stream(1..1_000_000, fn _x -> @big_string |> Base64.encode |> Base64.decode end) |> Enum.to_list
+t1 = System.system_time(:millisecond)</pre>
+    <h5>Python</h5>
+    <pre class="prettyprint">
+time_start = time.time()
+for _ in range(1000000): largeTest = decode(encode(largeData))
+time_stop = time.time()</pre>
+    <h3>
+      Results
+    </h3>
+    <table>
+      <thead>
+      <tr>
+      <th>Language</th>
+      <th>Time (s)</th>
+      <th>Comments</th>
+      <th>Encoding Struct</th>
+      <th>Decoding Struct</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>C</td>
+      <td>1.078</td>
+      <td>Compiled with gcc -O3</td>
+      <td>char *</td>
+      <td>char *</td>
+      </tr>
+      <tr>
+      <td>Java</td>
+      <td>3.173</td>
+      <td></td>
+      <td>StringBuffer</td>
+      <td>ByteBuffer</td>
+      </tr>
+      <tr>
+      <td>C#</td>
+      <td>4.585</td>
+      <td>Ran in VS 2015, .NET 4.6</td>
+      <td>StringBuilder</td>
+      <td>byte[]</td>
+      </tr>
+      <tr>
+      <td>Nim</td>
+      <td>5.264</td>
+      <td>Compiled with nim c -d:release</td>
+      <td>string</td>
+      <td>string</td>
+      </tr>
+      <tr>
+      <td>Python</td>
+      <td>15.52</td>
+      <td>Ran with PyPy3 (JIT)</td>
+      <td>List</td>
+      <td>bytearray</td>
+      </tr>
+      <tr>
+      <td>Crystal</td>
+      <td>20.28</td>
+      <td>Compiled with crystal build --release</td>
+      <td>String</td>
+      <td>UInt8[]</td>
+      </tr>
+      <tr>
+      <td>Javascript</td>
+      <td>22.04</td>
+      <td>Ran with Node.js v10</td>
+      <td>String</td>
+      <td>Buffer</td>
+      </tr>
+      <tr>
+      <td>Elixir</td>
+      <td>53.00</td>
+      <td>Used Task.async_stream</td>
+      <td>bitstring</td>
+      <td>bitstring</td>
+      </tr>
+      <tr>
+      <td>Python</td>
+      <td>355.3</td>
+      <td>Ran with Python3 (standard)</td>
+      <td>List</td>
+      <td>bytearray</td>
+      </tr>
+      </tbody>
+    </table>
+    <p>
+      It should come as no surprise that optimized C beat out everything else by a longshot. 
+      Interpreted Python is comically slow, but JIT’d Python, with PyPy3, made it competitive by giving it a 2200% speedup. 
+      Nim, whose implementation was identical to that of Python, was three times faster than PyPy3.
+      Java is sitting comfortably in second place. For as much hate as Java receives, it did exceedingly well in this benchmark.
+      C# wasn’t too far behind it when run in release mode.
+      Poor Elixir; though it’s built-in baseN encode/decode functions make it competitive with the likes of my
+      JS, Crystal, and PyPy3 Python implementations, my crusty algorithms didn’t make Elixir look very good here.
+      I think the main issue with it is that the function pattern matching forced it to check the remainder case several times per
+      iteration, something I explicitly avoided in other languages.
+    </p>
+    <h2>Conclusion</h2>
+    <p>
+      Thank you for taking the time to read this, or for at least scrolling to the bottom of the page. Hopefully you've learned something
+      about your favorite or least favorite languages. You should definitely use whatever native Base64 encoding library your language
+      has to offer. If you want to check out the repository, or even port my algorithm to another language, feel free to make a PR.
+      <a href="https://github.com/BrandtHill/Base64Encoding/" style="color: rgb(21, 247, 0)">Repository can be found here <i class="fab fa-github"></i></a>.
+    </p>
+  </main>
+</body>
+</html>
