@@ -47,6 +47,11 @@ li {
   text-align: left;
 }
 
+.linklist li{
+  font-size: 18px;
+  margin: 10px 0px;
+}
+
 main {
   margin: auto;
   width: 800px;
@@ -92,8 +97,8 @@ h2, h3{
 iframe {
   border-radius: 20px;
   margin-bottom: 30px;
-  transition: height 1s ease-in;
-  transition-delay: 1s;
+  transition: height 750ms ease-in;
+  transition-delay: 750ms;
 }
 
 iframe:hover {

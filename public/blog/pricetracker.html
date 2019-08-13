@@ -18,16 +18,159 @@
   <main>
     <h1>Creating a Price Tracker in Elixir</h1>
     <p>
-        Elixir is a pretty <i>neat</i> language. It’s the first functional programming language that I’ve spent any amount of time with, unless you consider Java’s Functional Interfaces and C#’s LINQ to be functional programming. Elixir has <i>cute</i> syntax like pipes, <i>cool</i> features like pattern matching for everything, and <i>sick</i> capabilities like supervision trees. Pretending for a moment that most sites don’t already notify you when items go on sale, a price tracking application sounds like a great idea for an Elixir project.
+      Elixir is a pretty <i>neat</i> language. It’s the first functional programming language that I’ve spent any amount of time with (unless you consider Java’s Functional Interfaces and C#’s LINQ to be functional programming). Elixir has <i>cute</i> syntax like pipes, <i>cool</i> features like pattern matching for everything, and <i>sick</i> capabilities like supervision trees. Pretending for a moment that most sites don’t already notify you when items go on sale, a price tracking application sounds like a great idea for an Elixir project.
     </p>
+    <div class="social">
+        <a href="https://github.com/BrandtHill/Fyresale" target="_blank">
+          <h5>Repository here</h5>
+          <i class="fab fa-github"></i>
+        </a>
+      </div>
+    <h2>Extracting Price from Web Pages</h2>
     <p>
       The first thing we need to have is a way to grab html pages from the web that contain a product and its price. HTTPoison is the de facto standard HTTP client library for Elixir and what I’ll be using. Once we have the html, we need a way to extract the price from it. Floki is the HTML parsing library I’ll be using.
     </p>
     <p>
-      Let’s try to grab the contents of a web page. On success, <code class="prettyprint">HTTPoison.get/1</code> returns a tuple whose first element is the atom :ok and whose second element is a Response struct. Because all structs are maps in Elixir, we’ll use pattern patching to grab the body of the response.
+      Let’s try to grab the contents of a web page. On success, <code class="prettyprint">HTTPoison.get/1</code> returns a tuple whose first element is the atom <code class="prettyprint">:ok</code> and whose second element is a Response struct. Because all structs are maps in Elixir, we’ll use pattern patching to grab the body of the response.
       <pre class="prettyprint">{:ok, %{body: body}} = HTTPoison.get("https://www.escapefromtarkov.com/preorder-page")</pre>
-      Now that we have the HTML stored in body, we can use <code class=prettyprint>Floki.find/2</code> to extract what we want. The first argument is the raw HTML, and the second is a CSS attribute selector that Floki will use to match with elements in the document.
-    </p>    
+    </p>
+    <p>
+      Now that we have the HTML stored in body, we can use <code class=prettyprint>Floki.find/2</code> to extract what we want. The first argument is the raw HTML, and the second is a CSS attribute selector that Floki will use to match with elements in the document. Floki represents HTML  in an <code class=prettyprint>html_tree</code> struct where <br><code class=prettyprint>&lt;div class="hello"&gt;world&lt;/div&gt;</code> would be <code class=prettyprint>{"div", [{"class","hello"}], ["world"]}</code>.
+    </p>
+    <p>By inspecting the webpage in Chrome, I see the price for Escape From Tarkov's <i>Edge of Darkness Edition</i> is in a span with an attribute itemprop="price", so we'll see what Floki returns with that.</p>
+    <pre class="prettyprint">iex(2)> Floki.find(body, "[itemprop=price]")
+[
+  {"span", [{"itemprop", "price"}], ["44.99$"]},
+  {"span", [{"itemprop", "price"}], ["74.99$"]},
+  {"span", [{"itemprop", "price"}], ["99.99$"]},
+  {"span", [{"itemprop", "price"}], ["139.99$"]}
+]</pre>
+    <p>
+      That selector returned the prices for all the editions, but we can see the format Floki returns. I'm only interested in the crazy-expensive edition, so we'll adjust the selector to be more specific: "#preorder_edge_of_darkness [itemprop=price]" matches exactly what I want.
+    </p>
+    <p>
+      Now we'll grab the text from the node, remove any currency symbols, and parse the text as a float. <code class="prettyprint">Floki.text/2</code> will return the text from a node, and all its child nodes by default. The regex <code class="prettyprint">~r|[$¢£€¥₿]|</code> will help get just the number from the text. Before we put this all into a function, we need add a "User-Agent" header to  our HTTP GET calls to trick sites like Amazon into thinking we're a browser.
+    </p>
+    <pre class="prettyprint">def get_price(url, selector) do
+  with  {:ok, %{body: body}}  <- HTTPoison.get(url, @headers, follow_redirect: true),
+        html_node             <- Floki.find(body, selector),
+        text                  <- Floki.text(html_node, sep: " "),
+        num_str               <- String.replace(text, @currency_regex, ""),
+        {price, _rest}        <- Float.parse(num_str),
+        do: price
+end</pre>
+    <p>
+      Our <code class="prettyprint">get_price/2</code> function leverages a 'with' statement with no else clause, so the calling process will exit if a match fails at any step. This is fine for our application where we'll just call that function in an unlinked process every hour.
+    </p>
+    <h2>Maintaining Product State</h2>
+    <p>
+      Next we need to define a struct to represent a product. We'll need a name to key the product, a URL, and a selector at a minimum. Besides that, we'll need a current price, a base price to compare it to, and a sale price or sale ratio to determine when we want to be notified of a price drop. Finally we'll need to keep track of the price of the item the last time we sent a sale notification.
+    </p>
+    <pre class="prettyprint">defmodule Fyresale.Product do
+  defstruct [
+    :name,
+    :url,
+    :selector, 
+    curr_price: 0.0,
+    base_price: 0.0, 
+    sale_price: 0.0,
+    sale_ratio: 0.9,
+    sent_price: 0.0
+  ]
+  ...
+end</pre>
+    <p>
+      We'll say our product is on sale if either the current price is less than or equal to our sale price (if configured) or if the current price is less than or equal to the sale ratio (defaults to 0.9) multiplied by the base price. Because we don't want to send emails every hour something is on sale, we need to keep track of when we last sent a notification. We only want to care about a sale if the price drops <i>even lower</i> than when we last notified, or if the price has been at the base value since the last time we notified, in which case the value of 0.0 is assigned to sent_price.
+    </p>
+    <pre class="prettyprint">def on_sale?(product) do
+  product.curr_price <= product.sale_price or
+  product.curr_price <= product.sale_ratio * product.base_price
+end
+
+def should_send_sale?(product) do
+  product.sent_price == 0.0 or product.curr_price <= product.sent_price
+end</pre>
+    <p>
+      Now we need to maintain the state of our products. A simple GenServer was the obvious choice for this purpose. The underlying state is a map of products keyed by their names. The client API and GenServer callbacks with logging removed are shown below.
+    </p>
+    <pre class="prettyprint">
+def get_product(name) do
+  GenServer.call(Products, {:get_product, name})
+end
+
+def set_product(name, product) do
+  GenServer.cast(Products, {:set_product, name, product})
+end
+
+def handle_call({:get_product, name}, _from, state) do
+  {:reply, Map.get(state, name), state}
+end
+
+def handle_cast({:set_product, name, product}, state) do
+  {:noreply, Map.put(state, name, product)}
+end</pre>
+    <h2>Sending Emails</h2>
+    <p>
+      Now that we have a concept of products and a way to maintain their state, we ought to be able to send emails. Bamboo is the most common email library for Elixir, and it has many standard and third party adapters for email services like Mailgun, Mandrill, Sendgrid, etc. These are probably very useful for a large scale Phoenix application, but I just want to be able to use my personal gmail, so I'm using Bamboo.SMTPAdapter. <code class="prettyprint">use Bamboo.Mailer</code> gives your module access to the <code class="prettyprint">send_later/1</code> macro that will asynchronously send and an email created by <code class="prettyprint">Bamboo.Email.new_email/1</code>. Though Bamboo recommends separating the module that creates emails from the module that sends them, I opted to do both in one module.
+    </p>
+    <pre class="prettyprint">defmodule Fyresale.Mailer do
+  use Bamboo.Mailer, otp_app: :fyresale
+  
+  import Bamboo.Email
+
+  def sale_email(name) do
+    product = Fyresale.ProductStore.get_product(name)
+    new_email(
+      to: get_recipients(),
+      from: Application.get_env(:fyresale, Fyresale.Mailer)[:username],
+      subject: "Fyresale - #{name} is on sale",
+      html_body: "&lt;h3>#{name} is on sale for $#{product.curr_price}&lt;/h3>&lt;br>&lt;a href=\"#{product.url}\">Link to product&lt;/a>",
+      text_body: "#{name} is on sale for #{product.curr_price}. Link here: #{product.url}"
+    )
+  end
+
+  defp get_recipients do
+    unless Enum.empty?(Application.get_env(:fyresale, :recipients)) do
+      Application.get_env(:fyresale, :recipients)
+    else
+      Application.get_env(:fyresale, Fyresale.Mailer)[:username]
+    end
+  end
+end</pre>
+    <h2>Checking Price Periodically</h2>
+    <p>
+      With ability to check price, maintain product state, and send emails, we need a synchronous function to check a product's price, update it, and if needed, send an email notification and update again.
+    </p>
+    <pre class="prettyprint">def check_price(name) do
+  product = name |> ProductStore.get_product
+  price = get_price(product.url, product.selector)
+  product = product |> Product.update_price(price)
+  name |> ProductStore.set_product(product)
+  if Product.on_sale?(product) and Product.should_send_sale?(product) do
+    Mailer.sale_email(name) |> Mailer.deliver_later
+    ProductStore.set_product(name, Product.update_sent_to_curr(product))
+  end
+end</pre>
+    <p>
+      What's more, we can wrap that function in a fire-and-forget task to be run in its own unlinked, unsupervised process.
+    </p>
+    <pre class="prettyprint">defp check_price_task(name), do: Task.start(fn -> check_price(name) end)</pre>
+    <p>
+      Looping in Elixir is accomplished through recursion. Tail call optimization allows you to do this without blowing up the stack. In Elixir, it's usually considered improper to use <code class="prettyprint">Process.sleep/1</code>. The proper way to run a periodic task is to use <code class="prettyprint">Process.send_after/3</code> to send a message to a process after a timeout, very similar to <code class="prettyprint">setTimout()</code> in JavaScript. In our loop, we want to spawn an independent task for each product every hour to check its price. Because the processes aren't linked to our main supervised process, if a product fails to check its price during the loop iteration, its process will die on its own without affecting any other process. Every hour a new process will start for each product regardless of whether or not the last price check was successful.
+    </p>
+    <pre class="prettyprint">defp loop do
+  receive do
+    msg when is_list msg -> 
+      msg |> Enum.each(&check_price_task(&1))
+      Process.send_after(self(), msg, @loop_period)
+      loop()
+  end
+end </pre>
+    <h2>Conclusion</h2>
+    <p>
+      Great. With everything in place, we can throw our processes into a supervision tree and run our application. Thanks for reading and getting this far. <a href="https://github.com/BrandtHill/Fyresale/" style="color: rgb(21, 247, 0)">Fyresale repository can be found here <i class="fab fa-github"></i></a>. The README has detailed instructions on how to use and configure it.
+    </p>
   </main>
+  <footer></footer>
 </body>
 </html>
