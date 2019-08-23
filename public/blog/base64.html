@@ -407,6 +407,13 @@ gettimeofday(&timeStop, NULL);</pre>
 long timeStart = System.nanoTime();
 for (int i = 0; i < 1000000; i++) largeTest = decode(encode(largeData)); 
 long timeEnd = System.nanoTime();</pre>
+    <h5>Go</h5>
+    <pre class="prettyprint">
+t0 := time.Now()
+for i := 0; i < 1000000; i++ {
+  decode(encodeStr(largeData))
+}
+t1 := time.Since(t0)</pre>
     <h5>C#</h5>    
     <pre class="prettyprint">
 Stopwatch sw = new Stopwatch();
