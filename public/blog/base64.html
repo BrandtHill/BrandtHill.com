@@ -364,9 +364,9 @@ end</pre>
 
     <h3>Go</h3>
     <p>
-      After initially writing this blog post, I implemented the algorithm in Go. I thought it would be most similar to C, but Go has some conveniences like strings.Builder and bytes.Buffer.
-      This meant I didn't need a second indexing variable for the hot loops. Both of those structs have a Grow(int) method, so after initializing Builder/Buffer to their respective 'zero value' they could have their capacity increasing to the amount needed.
-      Unfortunately, Go doesn't have a ternary operator, so some things that took one line an most languages took up to eight in Go. The performance of Go was exceptional.
+      After initially writing this blog post, I implemented the algorithm in Go. I thought it would be most similar to C, but Go has some conveniences like <code class="prettyprint">strings.Builder</code> and <code class="prettyprint">bytes.Buffer</code> making it look closer to Java.
+      This meant I didn't need a second indexing variable for the hot loops. Both of those structs have a Grow(int) method, so after initializing Builder/Buffer to their respective 'zero value' they could have their capacity increased to the amount needed.
+      Unfortunately, Go doesn't have a ternary operator, so things that took one line in most languages took up to eight in Go. The performance of Go was exceptional.
     </p>
     <h2>Benchmark</h2>
     <p>
