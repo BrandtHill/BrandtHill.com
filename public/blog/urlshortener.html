@@ -32,7 +32,7 @@
     </p>
     <h2>Building the API</h2>
     <p>
-      I want to start with a simple REST API to get the bare minimum working. The mix task phx.gen.json generates everything needed for a JSON resource. My data structure only needs a url, a short path, and a number of visits that a shortened url received. I'll run mix <code class="prettyprint">phx.gen.json ShortUrls ShortUrl short_urls url:string shortpath:string:unique visits:integer</code>, which generates a 'Context' module named ShortUrls, an Ecto schema named ShortUrl, which is essentially struct with some Ecto magic underneath, a controller named ShortUrlController for all of my RESTful functionality, a view named 'ShortUrlView' for rendering the JSON data, migration scripts for creating our database table named 'short_urls', and few other files.
+      I want to start with a simple REST API to get the bare minimum working. The mix task phx.gen.json generates everything needed for a JSON resource. My data structure only needs a url, a short path, and a number of visits that a shortened url received. I'll run mix <code class="prettyprint">phx.gen.json ShortUrls ShortUrl short_urls url:string shortpath:string:unique visits:integer</code>, which generates a 'Context' module named ShortUrls, an Ecto schema named ShortUrl, which is essentially a struct with some Ecto magic underneath, a controller named ShortUrlController for all of my RESTful functionality, a view named 'ShortUrlView' for rendering the JSON data, migration scripts for creating our database table named 'short_urls', and few other files.
     </p>
     <pre class="prettyprint">
 ~ mix phx.gen.json ShortUrls ShortUrl short_urls url:string shortpath:string:unique visits:integer

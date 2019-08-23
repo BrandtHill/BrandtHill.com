@@ -67,11 +67,9 @@
       In Base16/hex we allowed our bytes to be 1 of 16 possible values, '0-9' and 'A-F'.<br>
       In Base64, our bytes are assigned 1 of 64(+1) possible vales: 'A-Z', 'a-z', '0-9', '/', '+',
       and a 65th character '=' for the cases where there's remainder in data to be encoded.<br>
-      The input data is split into chunks of 3 bytes, where each of these chunks will be encoded
-      into an output chunk of 4 characters. We can see from the figure than the chars 1 and 4 each 
-      depend on only one byte whereas chars 2 and 3 each depend on portions of two bytes. Because
-      we must store each char in memory as byte, we can see that our encoded output will be 4 bytes
-      to the 3 input, confirming our data-exploding factor of 1.333.
+      The input data is split into chunks of 3 bytes, where each chunk will be encoded into an output chunk of 4 characters.
+      We can see from the figure that the chars 1 and 4 each depend on only one byte whereas chars 2 and 3 each depend on portions of two bytes. Because
+      we must store each char in memory as byte, we can see that our encoded output will be 4 bytes compared to the 3 input bytes, confirming our data-exploding factor of 1.333.
     </p>
     <img src="Base64EncodingVisual.svg">
     <h2>The Code</h2>
@@ -363,6 +361,13 @@ def decode(data)
   end
   buffer
 end</pre>
+
+    <h3>Go</h3>
+    <p>
+      After initially writing this blog post, I implemented the algorithm in Go. I thought it would be most similar to C, but Go has some conveniences like strings.Builder and bytes.Buffer.
+      This meant I didn't need a second indexing variable for the hot loops. Both of those structs have a Grow(int) method, so after initializing Builder/Buffer to their respective 'zero value' they could have their capacity increasing to the amount needed.
+      Unfortunately, Go doesn't have a ternary operator, so some things that took one line an most languages took up to eight in Go. The performance of Go was exceptional.
+    </p>
     <h2>Benchmark</h2>
     <p>
       With all these lovely implementations of the same Base64 encoding and decoding algorithm, let's see how they compare.
@@ -386,7 +391,7 @@ echo decode encode "1234"
 echo "12345".encode.decode
 echo "123456".encode().decode()
 echo decode "QUJDYWJjMTIzWFlaeHl6"</pre>
-    <p>And here's what each of the one million paragrah benchmark looked like for each language. Remember to free your buffers in C.</p>
+    <p>And here's what each of the one million paragraph benchmark looked like for each language. Remember to free your buffers in C.</p>
     <h5>C</h5>
     <pre class="prettyprint">
 gettimeofday(&timeStart, NULL);
@@ -460,9 +465,16 @@ time_stop = time.time()</pre>
       <tr>
       <td>Java</td>
       <td>3.173</td>
-      <td></td>
+      <td>Ran in Eclipse, Java 8</td>
       <td>StringBuffer</td>
       <td>ByteBuffer</td>
+      </tr>
+      <tr>
+      <td>Go</td>
+      <td>3.374</td>
+      <td>Go version go1.12.9</td>
+      <td>strings.Builder</td>
+      <td>bytes.Buffer</td>
       </tr>
       <tr>
       <td>C#</td>
