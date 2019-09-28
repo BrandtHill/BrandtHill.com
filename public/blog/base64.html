@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
   <link rel="stylesheet" href="https://jmblog.github.io/color-themes-for-google-code-prettify/themes/tomorrow-night.min.css">
-  <link rel="icon" type="image/png" href="/Resistor.png">
+  <link rel="icon" type="image/png" href="/files/Resistor.png">
 </head>
 <body>
   <div class="topnav">
@@ -71,7 +71,7 @@
       We can see from the figure that the chars 1 and 4 each depend on only one byte whereas chars 2 and 3 each depend on portions of two bytes. Because
       we must store each char in memory as byte, we can see that our encoded output will be 4 bytes compared to the 3 input bytes, confirming our data-exploding factor of 1.333.
     </p>
-    <img src="Base64EncodingVisual.svg">
+    <img src="/files/Base64EncodingVisual.svg">
     <h2>The Code</h2>
     <p>
       If you didn't already know what Base64 encoding was, hopefully you do now. Let's get into the code.
@@ -331,7 +331,7 @@ end</pre>
 
     <h3>Nim and Crystal</h3>
     <p>
-      I've never programmed in Nim or Crystal, but my friend <a href="benhaney.com" style="color: rgb(21, 247, 0)">Ben Haney</a> kindly
+      I've never programmed in Nim or Crystal, but my friend <a href="https://benhaney.com" style="color: rgb(21, 247, 0)">Ben Haney</a> kindly
       contributed implementations in both languages.
       The Nim port is almost verbatim my Python; he simply copied it and changed the keywords and syntax around slightly to those of Nim.
       Nim compiles into C/C++ or Javascript and has apparently Python-like syntax. Very cool. Crystal is essentially statically type checked,
@@ -381,7 +381,7 @@ ultricies odio vulputate. Nunc finibus elit non venenatis maximus. Maecenas in m
 mattis laoreet purus. Sed lacus purus, tempus vel elementum sed, rutrum nec massa. Mauris
 mattis libero vitae nunc tempor, eget posuere ipsum molestie. Curabitur semper tempus diam.
 Morbi rutrum sollicitudin augue, rhoncus viverra velit volutpat vitae.\r\n`</pre>
-    <p>Here's <a href="benhaney.com" style="color: rgb(21, 247, 0)">Ben</a> flexing with Nim's Uniform Function Call Syntax.</p>
+    <p>Here's <a href="https://benhaney.com" style="color: rgb(21, 247, 0)">Ben</a> flexing with Nim's Uniform Function Call Syntax.</p>
     <pre class="prettyprint">
 echo encode("AAAAAAAAAAAA")
 echo "AAAAAAAAAAAAA".encode
