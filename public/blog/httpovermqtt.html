@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Making HTTP Requests Over MQTT</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="/main.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <link rel="stylesheet" href="https://jmblog.github.io/color-themes-for-google-code-prettify/themes/tomorrow-night.min.css">
+  <link rel="icon" type="image/png" href="/files/Resistor.png">
+</head>
+<body>
+  <div class="topnav">
+    <a href="https://brandthill.com">Home</a>
+  </div>
+  <main>
+    <h1>Making HTTP Requests Over MQTT</h1>
+    <p>HTTP and MQTT are two protocols that may seem at complete odds with each other, but both are suitable for IoT applications. I created what is essentially a 50-line Python script that enables you to make an HTTP request via the action of publishing an MQTT message. <em>Why would anyone want to do this?</em> There may be instances where you have an IoT device with an HTTP/REST API but its IP address is either unknown or private, and this would enable you to interface with it through a common MQTT broker.</p>
+    <h2>Design</h2>
+    <p>This script is meant to be run as a service <em>on</em> the IoT device(s) whose IP/whereabouts may be unknown. It works by having the devices connect to a remote MQTT broker and subscribe to a topic specific to each device. The topic string will contain an HTTP verb and path, and the payload, if present, can contain query parameters, headers, and request body. Once a message is received the script uses the topic and payload to make an HTTP request to the configured API and return the response over a similar MQTT topic.</p>
+    <p>The script depends on <code class="prettyprint">requests</code> for making HTTP requests, and <code class="prettyprint">paho-mqtt</code> for MQTT.</p>
+    <h2>API</h2>
+    <p>HTTP paths and MQTT topics are both slash delimited so the conversion works out well. The device&#39;s request topic looks like <code class="prettyprint">{app_name}/req/{id}/+/#</code> where the <code class="prettyprint">+</code> wildcard represents the HTTP verb and the <code class="prettyprint">#</code> wildcard represents the (optional) path of the endpoint. The request payload can be left empty, or it can contain a JSON object with optional values:</p>
+    <pre class="prettyprint">{
+    "params": {{PARAMS}}, # Flat dictionary of URL Query Parameters
+    "body": {{BODY}}, # Body either JSON or a string
+    "headers": {{HEADERS}}, # Flat dictionary of case-insensetive headers
+    "req_id": {{REQUEST_ID}} # Value to be sent back with response; no impact on API call
+}</pre>
+    <p>Once the MQTT message is received, the corresponding HTTP request is made and the response is sent via an MQTT message whose topic is identical to the request topic but <code class="prettyprint">req</code> is replaced with <code class="prettyprint">res</code>. The response message payload is JSON that will always contain these values:</p>
+    <pre class="prettyprint">{
+    "content": {{CONTENT}}, # Either JSON or string if XML, HTML, TXT, etc.
+    "status": {{HTTP_STATUS_CODE}}, # Integer, e.g. 200, 404, etc.
+    "req_id": {{REQ_ID}} # Same value from request if provided, or null
+}</pre>
+    <h2>Configuration</h2>
+    <p>Configuration is done through environment variables.</p>
+    <table>
+        <thead>
+        <tr>
+        <th>VAR NAME</th>
+        <th>PURPOSE</th>
+        <th>DEFAULT</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>MQTT_HOST</td>
+        <td>Hostname of remote MQTT Broker to connect to</td>
+        <td>localhost # Should actually be remote</td>
+        </tr>
+        <tr>
+        <td>MQTT_PORT</td>
+        <td>Port to connect to Remote MQTT Broker on</td>
+        <td>8883 # Default for MQTTS (Secure MQTT)</td>
+        </tr>
+        <tr>
+        <td>MQTT_USER</td>
+        <td>MQTT Username</td>
+        <td># No default; anonymous connection</td>
+        </tr>
+        <tr>
+        <td>MQTT_PASS</td>
+        <td>MQTT Password</td>
+        <td># No default; anonymous connection</td>
+        </tr>
+        <tr>
+        <td>MQTT_TOPIC_ID</td>
+        <td>Portion of MQTT topic unique for each device</td>
+        <td>itsme # Something like a serial number</td>
+        </tr>
+        <tr>
+        <td>MQTT_TOPIC_START</td>
+        <td>Beginning portion of MQTT topic for application</td>
+        <td>v1 # For identifying application</td>
+        </tr>
+        <tr>
+        <td>HTTP_BASE_URL</td>
+        <td>Base URL for the device&#39;s API</td>
+        <td><a href="http://localhost/">http://localhost/</a> # Should be localhost</td>
+        </tr>
+        <tr>
+        <td>HTTP_USER</td>
+        <td>Basic auth username for device&#39;s API</td>
+        <td># No default; leave blank if no auth</td>
+        </tr>
+        <tr>
+        <td>HTTP_PASS</td>
+        <td>Basic auth password for device&#39;s API</td>
+        <td># No default; leave blank if no auth</td>
+        </tr>
+        </tbody>
+    </table>
+    <p>The use case is that the device is connected to a common, remote MQTT broker, so MQTT_HOST should actually be something like <code class="prettyprint">mqtt.example.com</code>, not <code class="prettyprint">localhost</code>, and the MQTT username and password should also be set; the broker should certainly not allow anonymous connections for any serious use. Conversely, the HTTP_BASE_URL default value of <code class="prettyprint">http://localhost/</code> is actually sensible as the API would be running on the device, likely unencrypted and bound to localhost. Basic auth is supported, and the credentials are set on the device, because passing credentials over MQTT with every request would be incredibly boneheaded. <code class="prettyprint">MQTT_TOPIC_START</code> and <code class="prettyprint">MQTT_TOPIC_ID</code> correspond to <code class="prettyprint">{app_name}</code> and <code class="prettyprint">{id}</code> from the API section above. These values can have slashes; leading and trailing slashes will be trimmed, so <code class="prettyprint">///iot/config/v1////</code> will be interpreted as <code class="prettyprint">iot/config/v1</code>.</p>
+    <h2>Callback</h2>
+    <p>After grabbing configuration from the environment and connecting to the MQTT broker, everything happens in a single callback function that runs in a new thread to avoid blocking other queued requests. <code class="prettyprint">requests</code> is smart enough to handle <code class="prettyprint">None</code> parameters and set default headers.</p>
+    <pre class="prettyprint">def _on_message(client, userdata, msg):
+    topic_arr = msg.topic.split('/', PATH_INDEX)
+    verb = topic_arr[VERB_INDEX]
+    path = topic_arr[PATH_INDEX] if len(topic_arr) > PATH_INDEX else ''
+    
+    try:
+        payload = json.loads(msg.payload)
+    except ValueError:
+        payload = None
+
+    body_json = body_data = params = headers = req_id = None
+
+    if type(payload) is dict:
+        params = payload.get('params')
+        body = payload.get('body')
+        headers = payload.get('headers')
+        req_id = payload.get('req_id')
+        if type(body) is dict or type(body) is list:
+            body_json = body
+        else:
+            body_data = body
+        if type(headers) is not dict: headers = None
+
+    r = requests.request(method=verb, url=HTTP_BASE_URL+path, params=params, data=body_data, json=body_json, auth=HTTP_AUTH)
+    print(r.status_code, r.request.url)
+    try:
+        content = r.json()
+    except ValueError:
+        content = r.content.decode('utf-8')
+
+    client.publish(topic='/'.join([MQTT_PUB_TOPIC,verb,path]).rstrip('/'), payload=json.dumps({'content': content, 'status': r.status_code, 'req_id': req_id}), qos=2)
+    </pre>
+    <h2>Examples</h2>
+    <p>Say we have a device with a JSON REST API running on port 8000 with a some endpoints that allow us to read GPS coordinates. Given an <code class="prettyprint">{app_name}</code> of <code class="prettyprint">myapp/v1</code>, a unique device <code class="prettyprint">{id}</code> of <code class="prettyprint">L0L69</code>, and the device&#39;s base URL of <code class="prettyprint">http://localhost:8000/rest/api/v1/</code> the device would subscribe to the remote broker on topic <code class="prettyprint">myapp/v1/req/L0L69/+/#</code>. When a message arrives on topic <code class="prettyprint">myapp/v1/req/L0L69/get/gps/latitude</code> with an empty payload, the script wll take the verb <code class="prettyprint">get</code> and path <code class="prettyprint">gps/latitude</code> and make the call <code class="prettyprint">GET http://localhost:8000/rest/api/v1/gps/latitude</code>. Once the API call returns, the script will publish a message on topic <code class="prettyprint">myapp/v1/res/L0L69/get/gps/latitude</code> with payload</p>
+    <pre class="prettyprint">{
+    "content": {
+        "latitude":38.88888
+    },
+    "status": 200,
+    "req_id": null
+}</pre>
+    <p>That worked, and we didn&#39;t even need to provide a payload since it was a GET.</p>
+    <p>Building off of the previous example, let&#39;s say our device was a smart fridge all along with a food related API. A POST may look something like this: A request message would arrive on topic <code class="prettyprint">myapp/v1/req/L0L69/post/food/dessert</code> with payload</p>
+    <pre class="prettyprint">{
+    "body": {
+        "dessertId": "applePie",
+        "type": "pie",
+        "notes": [
+            "good with ice cream",
+            "quintessentially American"
+        ]
+    },
+    "req_id": "request_1337"
+}</pre>
+    <p>The script would make the call <code class="prettyprint">POST http://localhost:8000/rest/api/v1/food/dessert</code> with the body from the payload, and the API&#39;s response would prompt an MQTT message to be published on topic <code class="prettyprint">myapp/v1/res/L0L69/post/food/dessert</code> with payload</p>
+    <pre class="prettyprint">{
+    "content": "Yum. Resource created at /rest/api/v1/food/dessert/applePie",
+    "status": 201,
+    "req_id": "request_1337"
+}</pre>
+    <p>For some reason our fictional RESTful JSON API responded with TXT content, but the script handles non-JSON just fine.</p>
+    <h2 id="considerations">Considerations</h2>
+    <p>While the scheme of HTTP is syncronous - a client makes a request and awaits the response - MQTT is a asyncronous, as there may be any number of messages on any number topics being published at any given time. For this reason, the application publishing the request messages should wait until it successfully subscribes to the response message topic before making any requests to avoid race conditions. This is also the reason for including the optioanl &quot;req_id&quot; key in the request and response payloads.</p>
+    <p>The HttpOverMqtt script provides an MQTT API for making HTTP calls. I found <a href="https://www.home-assistant.io/blog/2017/03/28/http-to-mqtt-bridge/">this http to mqtt bridge</a>, which appears to do the inverse of what this application does; it sends an MQTT message upon making an HTTP POST. Something like this can be used or adapted to create an HTTP API that interfaces with HttpOverMqtt, allowing you to make HTTP requests to devices whose IPs may be unknown or unreachable using MQTT as a hidden middle layer.</p>
+    <p>Another use for HttpOverMqtt would be as a really terrible VPN. You could set HTTP_BASE_URL to a remote URL and run the script on a remote machine.</p>
+    <h2 id="security">Security</h2>
+    <p>If you&#39;re actually going to use this for something important, take extreme care to ensure your MQTT broker&#39;s ACL is configured properly so that not everyone connected to the broker can listen in and make their own requests at will. You should also use MQTTS, which uses SSL/TLS, so that your requests are encrypted. MQTT_PORT defaults to 8883 (mqtts) for this reason. The MQTT_TOPIC_ID must be unique for each device, so a device would only be listening to requests destined for itself, and not the other one-thousand smart-fridges connected to the broker. Assuming the MQTT broker being used is Mosquitto, there are a few ways to handle authentication. Mosquitto supports auth plugins for authenticating in via SQL, HTTP, Redis, etc. If you&#39;re not using an auth plugin, you can use mosquitto&#39;s <code class="prettyprint">password_file</code> and <code class="prettyprint">acl_file</code>. If you can trust each device to keep to its own dev-specific topic, you can use one password entry with a user we&#39;ll call <code class="prettyprint">device</code>. The ACL entry for that user would look like this:</p>
+    <pre class="prettyprint">user device
+topic read {app_name}/req/+/+/#
+topic write {app_name}/res/+/+/#
+# First '+' wildcard represents MQTT_TOPIC_ID (no slashes)
+# If MQTT_TOPIC_ID contains slashes, you'll need more '+' wildcards for each</pre>
+    <p>If you cannot trust each device to keep to its own topic, you can create a username and password for each device. The username, MQTT_USER, should be the same as MQTT_TOPIC_ID in this case. The ACL would pattern entries, which apply to all users:</p>
+    <pre class="prettyprint">pattern read {app_name}/req/%u/+/#
+pattern write {app_name}/res/%u/+/#
+# The username is substituted for '%u', restricting each device to its own topic</pre>
+    <p>The user making the requests, let&#39;s say <code class="prettyprint">admin</code>, should have ample ACL permissions to write to the <code class="prettyprint">req</code> topic and read the <code class="prettyprint">res</code> topic for all device names. If you have other users that are using the MQTT broker for other applications but don&#39;t want them to be able to access the HttpOverMqtt set of topics, I have <a href="https://github.com/eclipse/mosquitto/pull/1611">a pull request for the official Mosquitto repository</a> that would allow you to deny topics explicitly in the ACL that would otherwise be allowed by a more permissive ACL entry. It would be used like this:</p>
+    <pre class="prettyprint">user otheruser
+topic readwrite #
+topic deny {app_name}/#
+# Access any topic except for {app_name}/#</pre>
+    <p>While <code class="prettyprint">readwrite #</code> gives access to all topics, the <code class="prettyprint">deny {app_name}/#</code> would deny access to topics matching <code class="prettyprint">{app_name}/#</code> even though <code class="prettyprint">readwrite #</code> would normally grant it. If you don&#39;t have this option from my mosquitto fork, you will have to give explicit access to every topic that the other users would use:</p>
+    <pre class="prettyprint">user otheruser
+topic readwrite hello/#
+topic readwrite world/#
+topic readwrite foo/#
+topic readwrite bar/#</pre>
+    <p>A final option, which I haven't implemented yet, would be use to SSH encryption to authenticate the requests. The backend making the requests would need to know the public SSH keys of all the devices beforehand. The application creates an MQTT request and encrypts the payload using the device's public SSH key. Upon receipt, the device would decrypt the payload using its private SSH key and make the request. The response would be encrypted using the private SSH key, and the application receiving it would decrypt using the public SSH key.</p>
+    <h2>Conclusion</h2>
+    <p>Thanks for reading. I&#39;d be interested to hear about anyone&#39;s use of this project. Writing this post took me longer than it did to write the actual script. <a href="https://github.com/BrandtHill/HttpOverMqtt/">HttpOverMqtt respository can be found here <i class="fab fa-github"></i></a>.</p>
+  </main>
+  <footer></footer>
+</body>
+</html>
