@@ -18,6 +18,12 @@
   <main>
     <h1>Making HTTP Requests Over MQTT</h1>
     <p>HTTP and MQTT are two protocols that may seem at complete odds with each other, but both are suitable for IoT applications. I created what is essentially a 50-line Python script that enables you to make an HTTP request via the action of publishing an MQTT message. <em>Why would anyone want to do this?</em> There may be instances where you have an IoT device with an HTTP/REST API but its IP address is either unknown or private, and this would enable you to interface with it through a common MQTT broker.</p>
+    <div class="social">
+        <a href="https://github.com/BrandtHill/HttpOverMqtt" target="_blank">
+            <h5>Repository here</h5>
+            <i class="fab fa-github"></i>
+        </a>
+    </div>
     <h2>Design</h2>
     <p>This script is meant to be run as a service <em>on</em> the IoT device(s) whose IP/whereabouts may be unknown. It works by having the devices connect to a remote MQTT broker and subscribe to a topic specific to each device. The topic string will contain an HTTP verb and path, and the payload, if present, can contain query parameters, headers, and request body. Once a message is received the script uses the topic and payload to make an HTTP request to the configured API and return the response over a similar MQTT topic.</p>
     <p>The script depends on <code class="prettyprint">requests</code> for making HTTP requests, and <code class="prettyprint">paho-mqtt</code> for MQTT.</p>
