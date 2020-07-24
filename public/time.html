@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Leaving Time</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="public/main.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  <link rel="icon" type="image/png" href="files/Resistor.png">
+  <script type="text/javascript">
+    const calcTime = () => {
+      let required = document.getElementById('required').value
+      let current = document.getElementById('current').value
+      let clockedIn = document.getElementById('clockedIn').value
+      let needed = required - current
+      let neededHours = Math.floor(needed)
+      let neededMinutes = Math.round((needed - neededHours) * 60)
+      let currHours = +clockedIn.split(':')[0]
+      let currMinutes = +clockedIn.split(':')[1]
+      let newHours = (currHours + neededHours + Math.floor((neededMinutes + currMinutes) / 60)) % 24
+      let newMinutes = (currMinutes + neededMinutes) % 60
+      let newTime = `${('00' + newHours).slice(-2)}:${('00' + newMinutes).slice(-2)}`
+      document.getElementById('leaveTime').value = newTime
+    }
+  </script>
+</head>
+<body>
+  <main>
+    <div>
+      <label>Required Hours</label>
+      <input type="number" id="required" value="40" min="0"/>
+    </div>
+    <div>
+      <label>Current Hours</label>
+      <input type="number" id="current" min="0"/>
+    </div>
+    <div>
+      <label>Last Clocked In</label>
+      <input type="time" id="clockedIn" value="12:00"/>
+    </div>
+    <div>
+      <input type="button" onclick=calcTime() value="Calculate Time"/>
+      <input type="time" id="leaveTime" readonly/>
+    </div>
+  </main>
+  <footer></footer>
+</body>
+</html>
