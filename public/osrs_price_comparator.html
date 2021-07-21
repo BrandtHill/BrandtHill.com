@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>OSRS Price Comparator</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="public/main.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+  <link rel="icon" type="image/png" href="files/Resistor.png">
+  <script type="text/javascript">
+    const getPriceData = () => {
+      let url = "http://localhost:5000/"
+      let main_div = document.getElementById('main_prices')
+      main_div.innerHTML = ''
+      fetch(url)
+        .then(res => {return res.json()})
+        .then(json => {
+          json.forEach(comp => {
+            let div = document.createElement('div')
+            main_div.appendChild(div)
+            let name = document.createElement('h2')
+            let high = document.createElement('h3')
+            let low = document.createElement('h3')
+            name.innerText = comp.name
+            high.innerText = `High (Instant Buy): ${comp.high}`
+            low.innerText = `Low (Instant Sell): ${comp.low}`
+            high.style.color = comp.high > 0 ? 'green' : 'red'
+            low.style.color = comp.low > 0 ? 'green' : 'red'
+            div.appendChild(name)
+            div.appendChild(high)
+            div.appendChild(low)
+          });
+        })
+        .catch(err => console.log("Error.... -> " + err))
+    }
+  </script>
+</head>
+<body>
+  <main>
+    <div id="main_prices"></div>
+    <div>
+      <input type="button" onclick=getPriceData() value="Fetch Price Data"/>
+    </div>
+  </main>
+  <footer></footer>
+</body>
+</html>
