@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>OSRS Price Comparator</title>
-  <link rel="stylesheet" type="text/css" media="screen" href="main.css">
+  <link rel="stylesheet" type="text/css" media="screen" href="../public/main.css">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
   <link rel="icon" type="image/png" href="files/Resistor.png">
   <script type="text/javascript">
     const getPriceData = () => {
-      let url = "https://brandthill.com/osrs_price_comparator_api/"
+      let url = "http://localhost:5000" //"https://brandthill.com/osrs_price_comparator_api/"
       let main_div = document.getElementById('main_prices')
       main_div.innerHTML = ''
       fetch(url)
@@ -20,16 +20,18 @@
             let div = document.createElement('div')
             main_div.appendChild(div)
             let name = document.createElement('h2')
-            let high = document.createElement('h3')
-            let low = document.createElement('h3')
+            let ingredients = document.createElement('h3')
+            let result = document.createElement('h3')
+            let profit = document.createElement('h3')
             name.innerText = comp.name
-            high.innerText = `High (Instant Buy): ${comp.high}`
-            low.innerText = `Low (Instant Sell): ${comp.low}`
-            high.style.color = comp.high > 0 ? 'green' : 'red'
-            low.style.color = comp.low > 0 ? 'green' : 'red'
+            ingredients.innerText = `Ingredients: ${comp.ingredientsLow.toLocaleString('en-US')} to ${comp.ingredientsHigh.toLocaleString('en-US')}`
+            result.innerText = `Result: ${comp.resultLow.toLocaleString('en-US')} to ${comp.resultHigh.toLocaleString('en-US')}`
+            profit.innerText = `Maxmimum Profit (High Result - Low Ingredients): ${comp.maxProfit.toLocaleString('en-US')}`
+            profit.style.color = comp.maxProfit > 0 ? 'green' : 'red'
             div.appendChild(name)
-            div.appendChild(high)
-            div.appendChild(low)
+            div.appendChild(ingredients)
+            div.appendChild(result)
+            div.appendChild(profit)
           });
         })
         .catch(err => console.log("Error.... -> " + err))
